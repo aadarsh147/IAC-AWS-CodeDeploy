@@ -1,0 +1,126 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Deployment Group",
+  "Parameters" : {
+    "CodeDeployApplicationName" : {
+      "Description" : "A name for the application.",
+      "Type" : "String"
+    },
+    "DeploymentGroup" : {
+      "Description" : "DeploymentGroup Nmae",
+      "Type" : "String"
+    },
+    "TargetGroupName" : {
+      "Description" : "Target Group of Load Balancer",
+      "Type" : "String"
+    },
+    "AutoScalingGroupName" : {
+      "Description" : "AutoScaling Group for deployment group",
+      "Type" : "String"
+    },
+    "CodeDeployBucketName" : {
+      "Description" : "Name of the code deploy s3 bucket",
+      "Type" : "String"
+    },
+    "ConfigBucketName" : {
+      "Description" : "Name of the S3 Bucket for Configuration",
+      "Type" : "String"
+    }
+  },
+  "Resources" : {
+    "ApplicationGroupName" : {
+      "Type" : "AWS::CodeDeploy::Application",
+      "Properties" : {
+        "ApplicationName" : {
+          "Ref" : "CodeDeployApplicationName"
+        },
+        "ComputePlatform" : "Server"
+      }
+    },
+    "CodeDeployDeploymentGroup" : {
+      "Description" : "Create a deployment group",
+      "Type" : "AWS::CodeDeploy::DeploymentGroup",
+      "Properties" : {
+        "ApplicationName" : {
+          "Ref" : "ApplicationGroupName"
+        },
+        "DeploymentConfigName" : "CodeDeployDefault.AllAtOnce",
+        "DeploymentGroupName" : {
+          "Fn::Join" : [ "-", [ {
+            "Ref" : "DeploymentGroup"
+          } ] ]
+        },
+        "LoadBalancerInfo" : {
+          "TargetGroupInfoList" : [ {
+            "Name" : {
+              "Ref" : "TargetGroupName"
+            }
+          } ]
+        },
+        "AutoScalingGroups" : [ {
+          "Ref" : "AutoScalingGroupName"
+        } ],
+        "ServiceRoleArn" : {
+          "Fn::GetAtt" : [ "CodeDeployRole", "Arn" ]
+        }
+      }
+    },
+    "CodeDeployRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [ {
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : "codedeploy.amazonaws.com"
+            },
+            "Action" : "sts:AssumeRole"
+          } ]
+        },
+        "Path" : "/",
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole" ]
+      }
+    },
+    "IAMInstanceProfile" : {
+      "Description" : "IAM instance Profile created for IAM role ",
+      "Type" : "AWS::IAM::InstanceProfile",
+      "Properties" : {
+        "Path" : "/",
+        "Roles" : [ {
+          "Ref" : "CodeDeployRole"
+        } ]
+      }
+    },
+    "S3BucketCodeDeploy" : {
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "BucketName" : {
+          "Ref" : "CodeDeployBucketName"
+        },
+        "BucketEncryption" : {
+          "ServerSideEncryptionConfiguration" : [ {
+            "ServerSideEncryptionByDefault" : {
+              "SSEAlgorithm" : "AES256"
+            }
+          } ]
+        }
+      }
+    },
+    "S3BucketConfiguration" : {
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "BucketName" : {
+          "Ref" : "ConfigBucketName"
+        },
+        "BucketEncryption" : {
+          "ServerSideEncryptionConfiguration" : [ {
+            "ServerSideEncryptionByDefault" : {
+              "SSEAlgorithm" : "AES256"
+            }
+          } ]
+        }
+      }
+    }
+  }
+}
